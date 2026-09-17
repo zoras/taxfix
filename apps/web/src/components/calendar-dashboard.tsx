@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   appendExpense,
+  buildYearFileExport,
   factsForYear,
   groupCheckInsByYear,
   isCurrentMonthComplete,
@@ -175,6 +176,23 @@ export function CalendarDashboard() {
     setDialog(null);
   }
 
+  function exportFile() {
+    const { filename, body } = buildYearFileExport(store);
+    const blob = new Blob([body], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  const canExport =
+    store.checkIns.length > 0 ||
+    store.expenses.length > 0 ||
+    store.baselines.length > 0;
+
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -215,6 +233,13 @@ export function CalendarDashboard() {
             onClick={() => setDialog("expense")}
           >
             Add expense
+          </Button>
+          <Button
+            variant="outline"
+            disabled={!canExport}
+            onClick={exportFile}
+          >
+            Export
           </Button>
         </div>
       </header>

@@ -3,6 +3,7 @@ import { describe, expect, it } from "bun:test";
 import {
   CHECK_IN_QUESTIONS,
   appendExpense,
+  buildYearFileExport,
   factsForYear,
   findCheckIn,
   groupCheckInsByYear,
@@ -653,5 +654,47 @@ describe("yearsOnFile", () => {
     },
   ])("$name", ({ checkIns, expenses, years }) => {
     expect(yearsOnFile(checkIns, expenses)).toEqual(years);
+  });
+});
+
+describe("buildYearFileExport", () => {
+  it("names the download with the export date and writes CSV rows", () => {
+    const store = {
+      checkIns: [checkIn(2026, 9)],
+      baselines: [
+        {
+          year: 2026,
+          km: 14,
+          fullyRemote: false,
+          wfhDaysPerWeek: 2,
+        },
+      ],
+      expenses: [
+        {
+          year: 2026,
+          month: 9,
+          label: 'Work "laptop"',
+          amount: 900,
+          kind: "work_it" as const,
+          usePercent: 100,
+        },
+      ],
+    };
+
+    const { filename, body } = buildYearFileExport(
+      store,
+      new Date("2026-09-17T12:00:00.000Z"),
+    );
+
+    expect(filename).toBe("taxfix-year-file-2026-09-17.csv");
+    expect(body).toBe(
+      [
+        "type,year,month,job,move,wfh,expense,extra,label,amount,kind,km,fully_remote,wfh_days_per_week,summary",
+        "baseline,2026,,,,,,,,,,14,false,2,",
+        "check_in,2026,9,false,false,false,false,false,,,,,,,Quiet month",
+        'expense,2026,9,,,,,,"Work ""laptop""",900,work_it,,,,',
+        "",
+      ].join("\n"),
+    );
   });
 });

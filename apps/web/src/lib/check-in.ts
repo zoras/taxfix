@@ -395,3 +395,125 @@ export function factsForYear(
     expenses,
   };
 }
+
+export type YearFileExport = {
+  checkIns: MonthCheckIn[];
+  baselines: YearBaseline[];
+  expenses: FiledExpense[];
+};
+
+function csvCell(value: string | number | boolean | null | undefined): string {
+  if (value == null) {
+    return "";
+  }
+
+  const text = String(value);
+
+  if (/[",\n\r]/.test(text)) {
+    return `"${text.replaceAll('"', '""')}"`;
+  }
+
+  return text;
+}
+
+function csvRow(cells: Array<string | number | boolean | null | undefined>): string {
+  return cells.map(csvCell).join(",");
+}
+
+/** CSV download payload for the year File (baselines, check-ins, expenses). */
+export function buildYearFileExport(
+  store: YearFileExport,
+  exportedAt: Date = new Date(),
+): { filename: string; body: string } {
+  const stamp = exportedAt.toISOString().slice(0, 10);
+  const lines = [
+    csvRow([
+      "type",
+      "year",
+      "month",
+      "job",
+      "move",
+      "wfh",
+      "expense",
+      "extra",
+      "label",
+      "amount",
+      "kind",
+      "km",
+      "fully_remote",
+      "wfh_days_per_week",
+      "summary",
+    ]),
+  ];
+
+  for (const baseline of store.baselines) {
+    lines.push(
+      csvRow([
+        "baseline",
+        baseline.year,
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        baseline.fullyRemote ? null : baseline.km,
+        baseline.fullyRemote,
+        baseline.wfhDaysPerWeek,
+        "",
+      ]),
+    );
+  }
+
+  for (const entry of store.checkIns) {
+    lines.push(
+      csvRow([
+        "check_in",
+        entry.year,
+        entry.month,
+        entry.answers.job,
+        entry.answers.move,
+        entry.answers.wfh,
+        entry.answers.expense,
+        entry.answers.extra,
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        summarizeMonth(entry.answers, entry.followUps),
+      ]),
+    );
+  }
+
+  for (const expense of store.expenses) {
+    lines.push(
+      csvRow([
+        "expense",
+        expense.year,
+        expense.month,
+        "",
+        "",
+        "",
+        "",
+        "",
+        expense.label,
+        expense.amount,
+        expense.kind,
+        "",
+        "",
+        "",
+        "",
+      ]),
+    );
+  }
+
+  return {
+    filename: `taxfix-year-file-${stamp}.csv`,
+    body: `${lines.join("\n")}\n`,
+  };
+}
