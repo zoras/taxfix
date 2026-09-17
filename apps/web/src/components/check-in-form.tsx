@@ -6,6 +6,7 @@ import {
   CHECK_IN_QUESTIONS,
   isCheckInReady,
   isExpenseDraftComplete,
+  readReceiptFile,
   type CheckInAnswers,
   type ExpenseDraft,
   type FollowUps,
@@ -13,6 +14,7 @@ import {
   type QuestionId,
   type YearBaseline,
 } from "@/lib/check-in";
+import { ReceiptThumbnail } from "@/components/receipt-viewer";
 
 function YesNo({
   label,
@@ -494,6 +496,18 @@ export function ExpenseForm({
 }) {
   const ready = isExpenseDraftComplete(draft);
 
+  async function attachReceipt(file: File | undefined) {
+    if (!file) {
+      return;
+    }
+
+    const receipt = await readReceiptFile(file);
+
+    if (receipt) {
+      onChange({ ...draft, receipt });
+    }
+  }
+
   return (
     <form
       className="flex flex-col gap-4"
@@ -518,6 +532,44 @@ export function ExpenseForm({
           { id: "donation", label: "Donation" },
         ]}
       />
+      <div className="flex flex-col gap-2">
+        <Field label="Receipt (optional)">
+          {draft.receipt ? (
+            <div className="flex items-start gap-3 rounded-lg border bg-muted/30 p-3">
+              <ReceiptThumbnail
+                receipt={draft.receipt}
+                onReplace={(receipt) => onChange({ ...draft, receipt })}
+                onRemove={() => {
+                  const { receipt: _removed, ...rest } = draft;
+                  onChange(rest);
+                }}
+              />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">
+                  {draft.receipt.name}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Tap thumbnail to preview, download, or replace
+                </p>
+              </div>
+            </div>
+          ) : (
+            <Input
+              type="file"
+              accept="image/*,application/pdf"
+              onChange={(event) => {
+                void attachReceipt(event.target.files?.[0]);
+                event.target.value = "";
+              }}
+            />
+          )}
+        </Field>
+        {!draft.receipt ? (
+          <p className="text-xs text-muted-foreground">
+            Image or PDF, up to 2 MB. Not required to save.
+          </p>
+        ) : null}
+      </div>
       <div className="-mx-4 mt-2 flex justify-end border-t bg-muted/50 px-4 pt-4">
         <Button type="submit" disabled={!ready}>
           Save expense · {monthLabel}

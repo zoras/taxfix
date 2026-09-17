@@ -7,6 +7,7 @@ import {
   factsForYear,
   findCheckIn,
   groupCheckInsByYear,
+  isAllowedReceiptFile,
   isBaselineComplete,
   isCheckInReady,
   isCompleteAnswers,
@@ -14,6 +15,7 @@ import {
   isExpenseDraftComplete,
   isFollowUpComplete,
   monthName,
+  readReceiptFile,
   summarizeMonth,
   upsertCheckIn,
   yearsOnFile,
@@ -580,8 +582,70 @@ describe("isExpenseDraftComplete", () => {
       draft: { label: "DRK", amount: 50, kind: "donation" as const },
       complete: true,
     },
+    {
+      name: "receipt optional",
+      draft: {
+        label: "Laptop",
+        amount: 900,
+        kind: "work_it" as const,
+        receipt: {
+          name: "receipt.pdf",
+          mimeType: "application/pdf",
+          dataUrl: "data:application/pdf;base64,YQ==",
+        },
+      },
+      complete: true,
+    },
   ])("$name", ({ draft, complete }) => {
     expect(isExpenseDraftComplete(draft)).toBe(complete);
+  });
+});
+
+describe("isAllowedReceiptFile", () => {
+  it.each([
+    {
+      name: "png",
+      file: new File(["x"], "a.png", { type: "image/png" }),
+      allowed: true,
+    },
+    {
+      name: "pdf",
+      file: new File(["x"], "a.pdf", { type: "application/pdf" }),
+      allowed: true,
+    },
+    {
+      name: "too large",
+      file: new File([new Uint8Array(2 * 1024 * 1024 + 1)], "a.png", {
+        type: "image/png",
+      }),
+      allowed: false,
+    },
+    {
+      name: "wrong type",
+      file: new File(["x"], "a.txt", { type: "text/plain" }),
+      allowed: false,
+    },
+  ])("$name", ({ file, allowed }) => {
+    expect(isAllowedReceiptFile(file)).toBe(allowed);
+  });
+});
+
+describe("readReceiptFile", () => {
+  it("reads an allowed image into a receipt", async () => {
+    const file = new File(["hello"], "receipt.png", { type: "image/png" });
+    const receipt = await readReceiptFile(file);
+
+    expect(receipt).toEqual({
+      name: "receipt.png",
+      mimeType: "image/png",
+      dataUrl: expect.stringMatching(/^data:image\/png;base64,/),
+    });
+  });
+
+  it("rejects disallowed files", async () => {
+    const file = new File(["hello"], "notes.txt", { type: "text/plain" });
+
+    expect(await readReceiptFile(file)).toBeNull();
   });
 });
 
@@ -689,10 +753,10 @@ describe("buildYearFileExport", () => {
     expect(filename).toBe("taxfix-year-file-2026-09-17.csv");
     expect(body).toBe(
       [
-        "type,year,month,job,move,wfh,expense,extra,label,amount,kind,km,fully_remote,wfh_days_per_week,summary",
-        "baseline,2026,,,,,,,,,,14,false,2,",
-        "check_in,2026,9,false,false,false,false,false,,,,,,,Quiet month",
-        'expense,2026,9,,,,,,"Work ""laptop""",900,work_it,,,,',
+        "type,year,month,job,move,wfh,expense,extra,label,amount,kind,km,fully_remote,wfh_days_per_week,summary,receipt_name",
+        "baseline,2026,,,,,,,,,,14,false,2,,",
+        "check_in,2026,9,false,false,false,false,false,,,,,,,Quiet month,",
+        'expense,2026,9,,,,,,"Work ""laptop""",900,work_it,,,,,',
         "",
       ].join("\n"),
     );

@@ -64,13 +64,60 @@ export type YearSection = {
 
 export type FiledExpense = YearExpense & {
   year: number;
+  receipt?: ExpenseReceipt;
+};
+
+export type ExpenseReceipt = {
+  name: string;
+  mimeType: string;
+  dataUrl: string;
 };
 
 export type ExpenseDraft = {
   label: string;
   amount: number;
   kind: YearExpense["kind"];
+  receipt?: ExpenseReceipt;
 };
+
+export const MAX_RECEIPT_BYTES = 2 * 1024 * 1024;
+
+export function isAllowedReceiptFile(file: File): boolean {
+  return (
+    file.size > 0 &&
+    file.size <= MAX_RECEIPT_BYTES &&
+    (file.type.startsWith("image/") || file.type === "application/pdf")
+  );
+}
+
+export async function readReceiptFile(
+  file: File,
+): Promise<ExpenseReceipt | null> {
+  if (!isAllowedReceiptFile(file)) {
+    return null;
+  }
+
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let binary = "";
+
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+
+  return {
+    name: file.name,
+    mimeType: file.type,
+    dataUrl: `data:${file.type};base64,${btoa(binary)}`,
+  };
+}
+
+export function downloadReceipt(receipt: ExpenseReceipt) {
+  const link = document.createElement("a");
+
+  link.href = receipt.dataUrl;
+  link.download = receipt.name;
+  link.click();
+}
 
 export const MONTH_NAMES = [
   "January",
@@ -443,6 +490,7 @@ export function buildYearFileExport(
       "fully_remote",
       "wfh_days_per_week",
       "summary",
+      "receipt_name",
     ]),
   ];
 
@@ -463,6 +511,7 @@ export function buildYearFileExport(
         baseline.fullyRemote ? null : baseline.km,
         baseline.fullyRemote,
         baseline.wfhDaysPerWeek,
+        "",
         "",
       ]),
     );
@@ -486,6 +535,7 @@ export function buildYearFileExport(
         "",
         "",
         summarizeMonth(entry.answers, entry.followUps),
+        "",
       ]),
     );
   }
@@ -508,6 +558,7 @@ export function buildYearFileExport(
         "",
         "",
         "",
+        expense.receipt?.name ?? "",
       ]),
     );
   }
