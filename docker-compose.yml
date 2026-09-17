@@ -1,5 +1,8 @@
 name: taxfix-hack
 
+# App secrets: apps/web/.env
+# Tunnel token: gitignored .env.local (TUNNEL_TOKEN). Compose 2.23 cannot use the
+# path/required env_file object syntax — keep these as strings.
 services:
   web:
     build:
@@ -11,11 +14,10 @@ services:
     ports:
       - "3001:3001"
     env_file:
-      - path: apps/web/.env
-        required: false
+      - apps/web/.env
     environment:
-      BETTER_AUTH_URL: http://localhost:3001
-      CORS_ORIGIN: http://localhost:3001
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3001}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3001}
       DATABASE_URL: file:/data/local.db
     volumes:
       - type: bind
@@ -36,6 +38,16 @@ services:
       retries: 5
       start_period: 10s
     restart: unless-stopped
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    env_file:
+      - .env.local
+    depends_on:
+      web:
+        condition: service_healthy
 
 # BuildKit makes these available only while install/build commands run.
 secrets:
