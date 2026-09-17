@@ -1,10 +1,19 @@
 ---
+import BrandMark from "../components/BrandMark.astro";
 import SignUpForm from "../components/SignUpForm.astro";
 import Layout from "../layouts/Layout.astro";
 ---
 
-<Layout title="Sign Up - This Month" chrome="bare">
-  <div class="flex min-h-[calc(100vh-4rem)] items-center justify-center">
-    <SignUpForm />
-  </div>
+<Layout title="Sign up" chrome="bare">
+  <main class="flex min-h-screen flex-col items-center justify-center gap-8 px-4 py-12">
+    <a href="/" class="flex flex-col items-center gap-3">
+      <BrandMark class="size-12" />
+      <span class="text-sm font-medium text-muted-foreground">
+        This Month · Taxfix
+      </span>
+    </a>
+    <div class="w-full max-w-md rounded-2xl border bg-card p-2 shadow-sm">
+      <SignUpForm />
+    </div>
+  </main>
 </Layout>

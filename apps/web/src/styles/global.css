@@ -5,9 +5,28 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * Taxfix brand palette.
+ * Values sampled from the live taxfix.de stylesheet (forest #154618, lime
+ * #adee68, cream #fdf8f2, sand #eae0d7, warm grey #9a9288, ink #0c0b0a,
+ * mid-green #36893b, red #c8102e). Tints marked "derived" are mixed locally
+ * to hit WCAG AA against their surface.
+ */
 @theme inline {
   --font-heading: var(--font-sans);
-  --font-sans: 'Geist Variable', sans-serif;
+  --font-sans: "Geist Variable", sans-serif;
+
+  /* Raw brand ramp — use the semantic tokens below unless you need the hue itself. */
+  --color-brand-forest: #154618;
+  --color-brand-forest-light: #36893b;
+  --color-brand-lime: #adee68;
+  --color-brand-lime-soft: #cef5a4;
+  --color-brand-lime-mist: #ecffc7;
+  --color-brand-cream: #fdf8f2;
+  --color-brand-sand: #eae0d7;
+  --color-brand-stone: #9a9288;
+  --color-brand-ink: #0c0b0a;
+
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -48,73 +67,76 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Light — the default Taxfix surface: warm cream paper, forest ink, lime accents. */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --background: #fdf8f2;
+  --foreground: #0c0b0a;
+  --card: #ffffff;
+  --card-foreground: #0c0b0a;
+  --popover: #ffffff;
+  --popover-foreground: #0c0b0a;
+  --primary: #154618;
+  --primary-foreground: #fdf8f2;
+  --secondary: #eae0d7;
+  --secondary-foreground: #154618;
+  --muted: #f4ece3; /* derived: cream/sand midpoint */
+  --muted-foreground: #6f675e; /* derived from stone, darkened for AA on cream */
+  --accent: #cef5a4;
+  --accent-foreground: #154618;
+  --destructive: #c8102e;
+  --border: #eae0d7;
+  --input: #eae0d7;
+  --ring: #36893b;
+  --chart-1: #154618;
+  --chart-2: #36893b;
+  --chart-3: #adee68;
+  --chart-4: #9a9288;
+  --chart-5: #eae0d7;
+  --radius: 0.875rem;
+  /* Deep forest rail — the strongest brand cue in the app chrome. */
+  --sidebar: #154618;
+  --sidebar-foreground: #fdf8f2;
+  --sidebar-primary: #adee68;
+  --sidebar-primary-foreground: #154618;
+  --sidebar-accent: #1d5a21; /* derived: forest lifted one step for hover/active */
+  --sidebar-accent-foreground: #ecffc7;
+  --sidebar-border: #2a5c2d; /* derived */
+  --sidebar-ring: #adee68;
 }
 
+/* Dark — same brand, inverted: ink paper with lime carrying the emphasis. */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #0c0b0a;
+  --foreground: #fdf8f2;
+  --card: #16150f; /* derived */
+  --card-foreground: #fdf8f2;
+  --popover: #16150f;
+  --popover-foreground: #fdf8f2;
+  --primary: #adee68;
+  --primary-foreground: #0c0b0a;
+  --secondary: #1f1d19; /* derived */
+  --secondary-foreground: #fdf8f2;
+  --muted: #1f1d19;
+  --muted-foreground: #a89f94; /* derived from stone, lightened for AA on ink */
+  --accent: #1b3b1d; /* derived: forest dimmed for dark surfaces */
+  --accent-foreground: #cef5a4;
+  --destructive: #f5a894;
+  --border: #fdf8f21a;
+  --input: #fdf8f226;
+  --ring: #adee68;
+  --chart-1: #adee68;
+  --chart-2: #36893b;
+  --chart-3: #cef5a4;
+  --chart-4: #9a9288;
+  --chart-5: #154618;
+  --sidebar: #111110; /* derived */
+  --sidebar-foreground: #fdf8f2;
+  --sidebar-primary: #adee68;
+  --sidebar-primary-foreground: #0c0b0a;
+  --sidebar-accent: #1f1d19;
+  --sidebar-accent-foreground: #cef5a4;
+  --sidebar-border: #fdf8f21a;
+  --sidebar-ring: #adee68;
 }
 
 @layer base {
@@ -126,5 +148,12 @@
   }
   html {
     @apply font-sans;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* Taxfix headings read tight and confident rather than airy. */
+  h1,
+  h2,
+  h3 {
+    @apply font-heading tracking-tight;
   }
 }

@@ -20,19 +20,13 @@ export function AppSidebar({ currentPath }: { currentPath: string }) {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              size="lg"
-              render={<a href="/" />}
-              tooltip="This Month"
-            >
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+            <SidebarMenuButton size="lg" render={<a href="/" />} tooltip="This Month">
+              <div className="flex aspect-square size-8 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground">
                 <CalendarDays className="size-4" />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">This Month</span>
-                <span className="truncate text-xs text-sidebar-foreground/70">
-                  Taxfix
-                </span>
+                <span className="truncate text-xs text-sidebar-foreground/70">by Taxfix</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -61,14 +55,12 @@ export function AppSidebar({ currentPath }: { currentPath: string }) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" tooltip="Demo user">
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-accent text-sidebar-accent-foreground">
+              <div className="flex aspect-square size-8 items-center justify-center rounded-xl bg-sidebar-accent text-sidebar-accent-foreground">
                 D
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">Demo user</span>
-                <span className="truncate text-xs text-sidebar-foreground/70">
-                  Auth off
-                </span>
+                <span className="truncate text-xs text-sidebar-foreground/70">Auth off</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>

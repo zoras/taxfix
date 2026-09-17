@@ -53,9 +53,7 @@ function normalizeCheckIn(value: MonthCheckIn): MonthCheckIn {
 
 function loadStore(): FileStore {
   try {
-    const raw =
-      localStorage.getItem(STORAGE_KEY) ??
-      localStorage.getItem(LEGACY_STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_STORAGE_KEY);
 
     if (!raw) {
       return emptyStore;
@@ -65,9 +63,7 @@ function loadStore(): FileStore {
 
     if (Array.isArray(parsed)) {
       return {
-        checkIns: parsed.map((entry) =>
-          normalizeCheckIn(entry as MonthCheckIn),
-        ),
+        checkIns: parsed.map((entry) => normalizeCheckIn(entry as MonthCheckIn)),
         baselines: [],
         expenses: [],
       };
@@ -115,11 +111,7 @@ export function CalendarDashboard() {
   const savedBaseline = store.baselines.find((entry) => entry.year === year);
   const currentDone = isCurrentMonthComplete(store.checkIns, now);
   const monthLabel = monthName(month);
-  const needsBaseline = !yearHasStandingFacts(
-    year,
-    savedBaseline,
-    store.checkIns,
-  );
+  const needsBaseline = !yearHasStandingFacts(year, savedBaseline, store.checkIns);
   const years = yearsOnFile(store.checkIns, store.expenses, store.baselines);
   const monthsByYear = groupCheckInsByYear(store.checkIns);
 
@@ -189,18 +181,30 @@ export function CalendarDashboard() {
   }
 
   const canExport =
-    store.checkIns.length > 0 ||
-    store.expenses.length > 0 ||
-    store.baselines.length > 0;
+    store.checkIns.length > 0 || store.expenses.length > 0 || store.baselines.length > 0;
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-2">
-          <p className="text-sm text-muted-foreground">
-            {monthLabel} {year}
-          </p>
-          <h1 className="text-3xl font-medium tracking-tight">
+          <div className="flex items-center gap-2">
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
+                currentDone
+                  ? "bg-accent text-accent-foreground"
+                  : "bg-secondary text-secondary-foreground"
+              }`}
+            >
+              <span
+                className={`size-1.5 rounded-full ${currentDone ? "bg-primary" : "bg-muted-foreground"}`}
+              />
+              {currentDone ? "Filed" : "Open"}
+            </span>
+            <p className="text-sm text-muted-foreground">
+              {monthLabel} {year}
+            </p>
+          </div>
+          <h1 className="text-3xl font-semibold tracking-tight">
             {currentDone ? "You're caught up." : `${monthLabel} is ready.`}
           </h1>
           <p className="max-w-md text-muted-foreground">
@@ -234,11 +238,7 @@ export function CalendarDashboard() {
           >
             Add expense
           </Button>
-          <Button
-            variant="outline"
-            disabled={!canExport}
-            onClick={exportFile}
-          >
+          <Button variant="outline" disabled={!canExport} onClick={exportFile}>
             Export
           </Button>
         </div>
@@ -255,17 +255,10 @@ export function CalendarDashboard() {
               key={sectionYear}
               year={sectionYear}
               isCurrentYear={sectionYear === year}
-              months={
-                monthsByYear.find((section) => section.year === sectionYear)
-                  ?.months ?? []
-              }
-              baseline={store.baselines.find(
-                (entry) => entry.year === sectionYear,
-              )}
+              months={monthsByYear.find((section) => section.year === sectionYear)?.months ?? []}
+              baseline={store.baselines.find((entry) => entry.year === sectionYear)}
               checkIns={store.checkIns}
-              expenses={store.expenses.filter(
-                (expense) => expense.year === sectionYear,
-              )}
+              expenses={store.expenses.filter((expense) => expense.year === sectionYear)}
               onAddExpense={() => setDialog("expense")}
             />
           ))}
@@ -355,13 +348,10 @@ function YearCard({
   const summary = summarizeYear(facts);
 
   return (
-    <section
-      className="rounded-xl border bg-card p-5"
-      aria-labelledby={`year-${year}`}
-    >
+    <section className="rounded-2xl border bg-card p-6 shadow-sm" aria-labelledby={`year-${year}`}>
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
-          <h2 id={`year-${year}`} className="text-lg font-medium">
+          <h2 id={`year-${year}`} className="text-lg font-semibold">
             {year}
           </h2>
           <p className="text-sm text-muted-foreground">{meterCopy(summary)}</p>
@@ -372,17 +362,17 @@ function YearCard({
           </Button>
         ) : null}
       </div>
-      <div className="mb-4 h-2 overflow-hidden rounded-full bg-muted">
+      <div className="mb-4 h-2.5 overflow-hidden rounded-full bg-secondary">
         <div
-          className="h-full bg-primary"
+          className="h-full rounded-full bg-primary transition-[width] duration-500"
           style={{
             width: `${Math.min(100, (summary.werbungskosten / summary.lumpSumEur) * 100)}%`,
           }}
         />
       </div>
       <p className="mb-4 text-sm text-muted-foreground">
-        {trueTodayCopy(summary.standingKm, summary.standingWfhDaysPerWeek)} ·{" "}
-        {DEFAULT_WORKDAYS} workdays assumed. Estimate, not advice.
+        {trueTodayCopy(summary.standingKm, summary.standingWfhDaysPerWeek)} · {DEFAULT_WORKDAYS}{" "}
+        workdays assumed. Estimate, not advice.
       </p>
       {months.length > 0 ? (
         <ul className="divide-y">
@@ -409,9 +399,7 @@ function YearCard({
               <span className="font-medium">
                 {monthName(expense.month)} · {expense.label}
               </span>
-              <span className="text-sm text-muted-foreground">
-                €{expense.amount}
-              </span>
+              <span className="text-sm text-muted-foreground">€{expense.amount}</span>
             </li>
           ))}
         </ul>
@@ -420,10 +408,7 @@ function YearCard({
   );
 }
 
-function trueTodayCopy(
-  km: number | null | undefined,
-  wfh: number | undefined,
-): string {
+function trueTodayCopy(km: number | null | undefined, wfh: number | undefined): string {
   const bits = [];
 
   if (km === null) {
