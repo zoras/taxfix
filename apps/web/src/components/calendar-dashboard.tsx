@@ -1,71 +1,178 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
+import { CheckInForm, ExpenseForm } from "@/components/check-in-form";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  CHECK_IN_QUESTIONS,
+  appendExpense,
+  factsForYear,
   groupCheckInsByYear,
-  isCompleteAnswers,
   isCurrentMonthComplete,
   monthName,
   summarizeMonth,
   upsertCheckIn,
+  yearHasStandingFacts,
+  yearsOnFile,
   type CheckInAnswers,
+  type ExpenseDraft,
+  type FiledExpense,
+  type FollowUps,
   type MonthCheckIn,
+  type YearBaseline,
 } from "@/lib/check-in";
+import { DEFAULT_WORKDAYS, meterCopy, summarizeYear } from "@/lib/tax-year";
 
-const STORAGE_KEY = "taxfix:month-check-ins";
+const STORAGE_KEY = "taxfix:year-file";
+const LEGACY_STORAGE_KEY = "taxfix:month-check-ins";
 
-function loadCheckIns(): MonthCheckIn[] {
+type FileStore = {
+  checkIns: MonthCheckIn[];
+  baselines: YearBaseline[];
+  expenses: FiledExpense[];
+};
+
+const emptyStore: FileStore = {
+  checkIns: [],
+  baselines: [],
+  expenses: [],
+};
+
+function normalizeCheckIn(value: MonthCheckIn): MonthCheckIn {
+  return {
+    ...value,
+    followUps: value.followUps ?? {},
+  };
+}
+
+function loadStore(): FileStore {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw =
+      localStorage.getItem(STORAGE_KEY) ??
+      localStorage.getItem(LEGACY_STORAGE_KEY);
 
     if (!raw) {
-      return [];
+      return emptyStore;
     }
 
     const parsed: unknown = JSON.parse(raw);
 
-    if (!Array.isArray(parsed)) {
-      return [];
+    if (Array.isArray(parsed)) {
+      return {
+        checkIns: parsed.map((entry) =>
+          normalizeCheckIn(entry as MonthCheckIn),
+        ),
+        baselines: [],
+        expenses: [],
+      };
     }
 
-    return parsed as MonthCheckIn[];
+    const store = parsed as FileStore;
+
+    return {
+      checkIns: (store.checkIns ?? []).map(normalizeCheckIn),
+      baselines: store.baselines ?? [],
+      expenses: store.expenses ?? [],
+    };
   } catch {
-    return [];
+    return emptyStore;
   }
 }
 
-function persistCheckIns(checkIns: MonthCheckIn[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(checkIns));
+function persistStore(store: FileStore) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
 }
+
+const emptyExpense = (): ExpenseDraft => ({
+  label: "",
+  amount: 0,
+  kind: "work_it",
+});
 
 export function CalendarDashboard() {
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
-  const [checkIns, setCheckIns] = useState<MonthCheckIn[]>([]);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [store, setStore] = useState<FileStore>(emptyStore);
+  const [dialog, setDialog] = useState<"check-in" | "expense" | null>(null);
+  const [answers, setAnswers] = useState<Partial<CheckInAnswers>>({});
+  const [followUps, setFollowUps] = useState<FollowUps>({});
+  const [baseline, setBaseline] = useState<YearBaseline | undefined>();
+  const [expenseDraft, setExpenseDraft] = useState<ExpenseDraft>(emptyExpense);
 
   useEffect(() => {
-    setCheckIns(loadCheckIns());
-  }, []);
+    const loaded = loadStore();
+    setStore(loaded);
+    setBaseline(loaded.baselines.find((entry) => entry.year === year));
+  }, [year]);
 
-  const currentDone = isCurrentMonthComplete(checkIns, now);
-  const yearSections = groupCheckInsByYear(checkIns);
+  const savedBaseline = store.baselines.find((entry) => entry.year === year);
+  const currentDone = isCurrentMonthComplete(store.checkIns, now);
   const monthLabel = monthName(month);
+  const needsBaseline = !yearHasStandingFacts(
+    year,
+    savedBaseline,
+    store.checkIns,
+  );
+  const years = yearsOnFile(store.checkIns, store.expenses, store.baselines);
+  const monthsByYear = groupCheckInsByYear(store.checkIns);
 
-  function saveCheckIn(answers: CheckInAnswers) {
-    const next = upsertCheckIn(checkIns, { year, month, answers });
-    setCheckIns(next);
-    persistCheckIns(next);
+  function writeStore(next: FileStore) {
+    setStore(next);
+    persistStore(next);
+  }
+
+  function saveCheckIn() {
+    if (
+      typeof answers.job !== "boolean" ||
+      typeof answers.move !== "boolean" ||
+      typeof answers.wfh !== "boolean" ||
+      typeof answers.expense !== "boolean" ||
+      typeof answers.extra !== "boolean"
+    ) {
+      return;
+    }
+
+    const nextCheckIns = upsertCheckIn(store.checkIns, {
+      year,
+      month,
+      answers: answers as CheckInAnswers,
+      followUps,
+    });
+    const nextBaselines =
+      baseline && needsBaseline
+        ? [...store.baselines.filter((entry) => entry.year !== year), baseline]
+        : store.baselines;
+
+    writeStore({
+      checkIns: nextCheckIns,
+      baselines: nextBaselines,
+      expenses: store.expenses,
+    });
+    setDialog(null);
+    setAnswers({});
+    setFollowUps({});
+  }
+
+  function saveExpense() {
+    writeStore({
+      ...store,
+      expenses: appendExpense(store.expenses, {
+        year,
+        month,
+        label: expenseDraft.label.trim(),
+        amount: expenseDraft.amount,
+        kind: expenseDraft.kind,
+        usePercent: 100,
+      }),
+    });
+    setExpenseDraft(emptyExpense());
+    setDialog(null);
   }
 
   return (
@@ -80,158 +187,233 @@ export function CalendarDashboard() {
           </h1>
           <p className="max-w-md text-muted-foreground">
             {currentDone
-              ? "Past months stay on this page. Nothing is due."
-              : "A short check-in about how this month passed. Nothing to catch up on unless you want to."}
+              ? "The month is filed. You can still drop in an expense any day."
+              : "A short check-in about how this month passed — or add an expense without the quiz."}
           </p>
         </div>
-        {!currentDone ? (
-          <Button onClick={() => setDialogOpen(true)}>Check in</Button>
-        ) : null}
+        <div className="flex flex-wrap gap-2">
+          {!currentDone ? (
+            <Button
+              onClick={() => {
+                if (!baseline) {
+                  setBaseline({
+                    year,
+                    km: null,
+                    fullyRemote: false,
+                    wfhDaysPerWeek: 0,
+                  });
+                }
+
+                setDialog("check-in");
+              }}
+            >
+              Check in
+            </Button>
+          ) : null}
+          <Button
+            variant={currentDone ? "default" : "outline"}
+            onClick={() => setDialog("expense")}
+          >
+            Add expense
+          </Button>
+        </div>
       </header>
 
-      {yearSections.length === 0 ? (
+      {years.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          No years on file yet. Check in when something happens — or when nothing does.
+          No years on file yet. Check in, or add an expense the week it happens.
         </p>
       ) : (
         <div className="flex flex-col gap-6">
-          {yearSections.map((section) => (
-            <section
-              key={section.year}
-              className="rounded-xl border bg-card p-5"
-              aria-labelledby={`year-${section.year}`}
-            >
-              <h2 id={`year-${section.year}`} className="mb-1 text-lg font-medium">
-                {section.year}
-              </h2>
-              <p className="mb-4 text-sm text-muted-foreground">
-                {section.months.length === 1
-                  ? "1 month on file"
-                  : `${section.months.length} months on file`}
-              </p>
-              <ul className="divide-y">
-                {section.months.map((entry) => (
-                  <li
-                    key={`${entry.year}-${entry.month}`}
-                    className="flex items-baseline justify-between gap-4 py-3 first:pt-0 last:pb-0"
-                  >
-                    <span className="font-medium">{monthName(entry.month)}</span>
-                    <span className="text-right text-sm text-muted-foreground">
-                      {summarizeMonth(entry.answers)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </section>
+          {years.map((sectionYear) => (
+            <YearCard
+              key={sectionYear}
+              year={sectionYear}
+              isCurrentYear={sectionYear === year}
+              months={
+                monthsByYear.find((section) => section.year === sectionYear)
+                  ?.months ?? []
+              }
+              baseline={store.baselines.find(
+                (entry) => entry.year === sectionYear,
+              )}
+              checkIns={store.checkIns}
+              expenses={store.expenses.filter(
+                (expense) => expense.year === sectionYear,
+              )}
+              onAddExpense={() => setDialog("expense")}
+            />
           ))}
         </div>
       )}
 
-      <CheckInDialog
-        monthLabel={monthLabel}
-        year={year}
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        onComplete={saveCheckIn}
-      />
+      <Dialog
+        open={dialog !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDialog(null);
+            setAnswers({});
+            setFollowUps({});
+            setExpenseDraft(emptyExpense());
+          }
+        }}
+      >
+        <DialogContent className="flex max-h-[min(90vh,44rem)] flex-col overflow-hidden sm:max-w-lg">
+          {dialog === "check-in" ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>
+                  {monthLabel} {year}
+                </DialogTitle>
+                <DialogDescription>
+                  One form. Extra fields appear only when you say yes.
+                </DialogDescription>
+              </DialogHeader>
+              <CheckInForm
+                monthLabel={monthLabel}
+                year={year}
+                needsBaseline={needsBaseline}
+                answers={answers}
+                followUps={followUps}
+                baseline={baseline}
+                onAnswersChange={setAnswers}
+                onFollowUpsChange={setFollowUps}
+                onBaselineChange={setBaseline}
+                onSubmit={saveCheckIn}
+              />
+            </>
+          ) : null}
+          {dialog === "expense" ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Add an expense</DialogTitle>
+                <DialogDescription>
+                  {monthLabel} {year}
+                  {currentDone ? " · this month is already caught up" : ""}
+                </DialogDescription>
+              </DialogHeader>
+              <ExpenseForm
+                monthLabel={monthLabel}
+                draft={expenseDraft}
+                onChange={setExpenseDraft}
+                onSubmit={saveExpense}
+              />
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function CheckInDialog({
-  monthLabel,
+function YearCard({
   year,
-  open,
-  onOpenChange,
-  onComplete,
+  isCurrentYear,
+  months,
+  baseline,
+  checkIns,
+  expenses,
+  onAddExpense,
 }: {
-  monthLabel: string;
   year: number;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onComplete: (answers: CheckInAnswers) => void;
+  isCurrentYear: boolean;
+  months: MonthCheckIn[];
+  baseline: YearBaseline | undefined;
+  checkIns: MonthCheckIn[];
+  expenses: FiledExpense[];
+  onAddExpense: () => void;
 }) {
-  const [step, setStep] = useState(0);
-  const [draft, setDraft] = useState<Partial<CheckInAnswers>>({});
-
-  const finished = step >= CHECK_IN_QUESTIONS.length;
-  const question = CHECK_IN_QUESTIONS[step];
-
-  function reset() {
-    setStep(0);
-    setDraft({});
-  }
-
-  function handleOpenChange(nextOpen: boolean) {
-    onOpenChange(nextOpen);
-
-    if (!nextOpen) {
-      reset();
-    }
-  }
-
-  function answer(value: boolean) {
-    if (!question) {
-      return;
-    }
-
-    const nextDraft = { ...draft, [question.id]: value };
-    setDraft(nextDraft);
-
-    if (step === CHECK_IN_QUESTIONS.length - 1 && isCompleteAnswers(nextDraft)) {
-      onComplete(nextDraft);
-    }
-
-    setStep((current) => current + 1);
-  }
+  const facts = useMemo(
+    () => factsForYear(year, baseline, checkIns, expenses),
+    [year, baseline, checkIns, expenses],
+  );
+  const summary = summarizeYear(facts);
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md" showCloseButton={!finished}>
-        {finished ? (
-          <>
-            <DialogHeader>
-              <DialogTitle>You're caught up.</DialogTitle>
-              <DialogDescription>
-                {monthLabel} {year} is on file. July can wait.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button onClick={() => handleOpenChange(false)}>Done</Button>
-            </DialogFooter>
-          </>
-        ) : (
-          <>
-            <DialogHeader>
-              <DialogTitle>
-                {monthLabel} {year}
-              </DialogTitle>
-              <DialogDescription>
-                Question {step + 1} of {CHECK_IN_QUESTIONS.length}
-              </DialogDescription>
-            </DialogHeader>
-            <p className="text-base text-foreground">{question.prompt}</p>
-            <DialogFooter className="sm:justify-between">
-              {step > 0 ? (
-                <Button
-                  variant="ghost"
-                  onClick={() => setStep((current) => Math.max(0, current - 1))}
-                >
-                  Back
-                </Button>
-              ) : (
-                <span />
-              )}
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => answer(false)}>
-                  No
-                </Button>
-                <Button onClick={() => answer(true)}>Yes</Button>
-              </div>
-            </DialogFooter>
-          </>
-        )}
-      </DialogContent>
-    </Dialog>
+    <section
+      className="rounded-xl border bg-card p-5"
+      aria-labelledby={`year-${year}`}
+    >
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <h2 id={`year-${year}`} className="text-lg font-medium">
+            {year}
+          </h2>
+          <p className="text-sm text-muted-foreground">{meterCopy(summary)}</p>
+        </div>
+        {isCurrentYear ? (
+          <Button variant="outline" size="sm" onClick={onAddExpense}>
+            Add expense
+          </Button>
+        ) : null}
+      </div>
+      <div className="mb-4 h-2 overflow-hidden rounded-full bg-muted">
+        <div
+          className="h-full bg-primary"
+          style={{
+            width: `${Math.min(100, (summary.werbungskosten / summary.lumpSumEur) * 100)}%`,
+          }}
+        />
+      </div>
+      <p className="mb-4 text-sm text-muted-foreground">
+        {trueTodayCopy(summary.standingKm, summary.standingWfhDaysPerWeek)} ·{" "}
+        {DEFAULT_WORKDAYS} workdays assumed. Estimate, not advice.
+      </p>
+      {months.length > 0 ? (
+        <ul className="divide-y">
+          {months.map((entry) => (
+            <li
+              key={`${entry.year}-${entry.month}-checkin`}
+              className="flex items-baseline justify-between gap-4 py-3 first:pt-0"
+            >
+              <span className="font-medium">{monthName(entry.month)}</span>
+              <span className="text-right text-sm text-muted-foreground">
+                {summarizeMonth(entry.answers, entry.followUps)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {expenses.length > 0 ? (
+        <ul className="mt-2 divide-y border-t">
+          {expenses.map((expense) => (
+            <li
+              key={`${expense.month}-${expense.label}-${expense.amount}`}
+              className="flex items-baseline justify-between gap-4 py-3"
+            >
+              <span className="font-medium">
+                {monthName(expense.month)} · {expense.label}
+              </span>
+              <span className="text-sm text-muted-foreground">
+                €{expense.amount}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </section>
   );
+}
+
+function trueTodayCopy(
+  km: number | null | undefined,
+  wfh: number | undefined,
+): string {
+  const bits = [];
+
+  if (km === null) {
+    bits.push("Fully remote");
+  } else if (km != null) {
+    bits.push(`${km} km one way`);
+  }
+
+  if (wfh != null) {
+    bits.push(`WFH ${wfh} days/week`);
+  }
+
+  if (bits.length === 0) {
+    return "Nothing standing yet";
+  }
+
+  return bits.join(" · ");
 }
