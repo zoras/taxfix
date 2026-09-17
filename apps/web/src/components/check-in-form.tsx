@@ -467,14 +467,12 @@ export function ExpenseFields({
 }
 
 export function ExpenseForm({
-  monthLabel,
   draft,
   onChange,
   onSubmit,
   onDelete,
   submitLabel,
 }: {
-  monthLabel: string;
   draft: ExpenseDraft;
   onChange: (draft: ExpenseDraft) => void;
   onSubmit: () => void;
@@ -565,7 +563,7 @@ export function ExpenseForm({
           <span />
         )}
         <Button type="submit" disabled={!ready}>
-          {submitLabel ?? `Save expense · ${monthLabel}`}
+          {submitLabel ?? "Save expense"}
         </Button>
       </div>
     </form>

@@ -122,8 +122,11 @@ export function CalendarDashboard() {
   const editingExpense = editingExpenseId
     ? store.expenses.find((expense) => expense.id === editingExpenseId)
     : undefined;
-  const expenseMonthLabel = editingExpense ? monthName(editingExpense.month) : monthLabel;
-  const needsBaseline = !yearHasStandingFacts(year, savedBaseline, store.checkIns);
+  const needsBaseline = !yearHasStandingFacts(
+    year,
+    savedBaseline,
+    store.checkIns,
+  );
   const years = yearsOnFile(store.checkIns, store.expenses, store.baselines);
   const monthsByYear = groupCheckInsByYear(store.checkIns);
 
@@ -363,21 +366,18 @@ export function CalendarDashboard() {
               <DialogHeader>
                 <DialogTitle>{editingExpenseId ? "Edit expense" : "Add an expense"}</DialogTitle>
                 <DialogDescription>
-                  {expenseMonthLabel} {editingExpense?.year ?? year}
-                  {!editingExpenseId && currentDone ? " · this month is already caught up" : ""}
+                  {editingExpense?.year ?? year}
+                  {!editingExpenseId && currentDone
+                    ? " · this month is already caught up"
+                    : ""}
                 </DialogDescription>
               </DialogHeader>
               <ExpenseForm
-                monthLabel={expenseMonthLabel}
                 draft={expenseDraft}
                 onChange={setExpenseDraft}
                 onSubmit={saveExpense}
                 onDelete={editingExpenseId ? deleteExpense : undefined}
-                submitLabel={
-                  editingExpenseId
-                    ? `Update · ${expenseMonthLabel}`
-                    : `Save expense · ${expenseMonthLabel}`
-                }
+                submitLabel={editingExpenseId ? "Update" : "Save expense"}
               />
             </>
           ) : null}
