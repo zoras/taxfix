@@ -1,0 +1,3 @@
+{
+  "extends": "@taxfix-hack/config/tsconfig.base.json"
+}

@@ -1,0 +1,51 @@
+{
+  "name": "taxfix-hack",
+  "private": true,
+  "workspaces": {
+    "packages": [
+      "apps/*",
+      "packages/*"
+    ],
+    "catalog": {
+      "zod": "^4.5.4",
+      "typescript": "^6.0.3",
+      "varlock": "1.18.0",
+      "@libsql/client": "0.18.0",
+      "libsql": "0.5.29",
+      "better-auth": "1.7.3"
+    }
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --filter '*' dev",
+    "build": "bun run --filter '*' build",
+    "check-types": "bun run --filter '*' check-types",
+    "dev:web": "bun run --filter web dev",
+    "db:push": "bun run --filter @taxfix-hack/db db:push",
+    "db:studio": "bun run --filter @taxfix-hack/db db:studio",
+    "db:generate": "bun run --filter @taxfix-hack/db db:generate",
+    "db:migrate": "bun run --filter @taxfix-hack/db db:migrate",
+    "db:local": "bun run --filter @taxfix-hack/db db:local",
+    "docker:build": "docker compose build",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "env:generate": "varlock codegen --path ./apps/web/ && varlock codegen --path ./packages/db/",
+    "postinstall": "varlock codegen --path ./apps/web/ && varlock codegen --path ./packages/db/",
+    "auth:generate": "cd apps/web && bun run auth:generate",
+    "check": "oxlint && oxfmt --write"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@taxfix-hack/config": "workspace:*",
+    "@types/node": "^26.4.1",
+    "lefthook": "^2.1.12",
+    "oxfmt": "^0.66.0",
+    "oxlint": "^1.81.0",
+    "typescript": "catalog:",
+    "varlock": "catalog:"
+  },
+  "packageManager": "bun@1.3.5"
+}
