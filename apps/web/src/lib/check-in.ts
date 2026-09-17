@@ -62,6 +62,7 @@ export type YearSection = {
 };
 
 export type FiledExpense = YearExpense & {
+  id: string;
   year: number;
   receipt?: ExpenseReceipt;
 };
@@ -78,6 +79,28 @@ export type ExpenseDraft = {
   kind: YearExpense["kind"];
   receipt?: ExpenseReceipt;
 };
+
+export function createExpenseId(): string {
+  return crypto.randomUUID();
+}
+
+export function draftFromExpense(expense: FiledExpense): ExpenseDraft {
+  return {
+    label: expense.label,
+    amount: expense.amount,
+    kind: expense.kind,
+    ...(expense.receipt ? { receipt: expense.receipt } : {}),
+  };
+}
+
+export function normalizeFiledExpense(
+  expense: Omit<FiledExpense, "id"> & { id?: string },
+): FiledExpense {
+  return {
+    ...expense,
+    id: expense.id ?? createExpenseId(),
+  };
+}
 
 export const MAX_RECEIPT_BYTES = 2 * 1024 * 1024;
 
@@ -302,6 +325,18 @@ export function isExpenseDraftComplete(draft: ExpenseDraft): boolean {
 
 export function appendExpense(expenses: FiledExpense[], expense: FiledExpense): FiledExpense[] {
   return [...expenses, expense];
+}
+
+export function updateExpense(
+  expenses: FiledExpense[],
+  id: string,
+  next: Omit<FiledExpense, "id"> & { id?: string },
+): FiledExpense[] {
+  return expenses.map((expense) => (expense.id === id ? { ...next, id } : expense));
+}
+
+export function removeExpense(expenses: FiledExpense[], id: string): FiledExpense[] {
+  return expenses.filter((expense) => expense.id !== id);
 }
 
 export function yearsOnFile(

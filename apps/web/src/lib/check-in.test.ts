@@ -4,6 +4,7 @@ import {
   CHECK_IN_QUESTIONS,
   appendExpense,
   buildYearFileExport,
+  draftFromExpense,
   factsForYear,
   findCheckIn,
   groupCheckInsByYear,
@@ -15,8 +16,11 @@ import {
   isExpenseDraftComplete,
   isFollowUpComplete,
   monthName,
+  normalizeFiledExpense,
   readReceiptFile,
+  removeExpense,
   summarizeMonth,
+  updateExpense,
   upsertCheckIn,
   yearsOnFile,
   type CheckInAnswers,
@@ -512,6 +516,7 @@ describe("factsForYear", () => {
   it("keeps later expenses after a completed check-in", () => {
     const completed = checkIn(2026, 9);
     const later: FiledExpense = {
+      id: "later-1",
       year: 2026,
       month: 9,
       label: "Monitor",
@@ -630,6 +635,7 @@ describe("readReceiptFile", () => {
 describe("appendExpense", () => {
   it("does not replace a check-in expense, it adds another row", () => {
     const first: FiledExpense = {
+      id: "first-1",
       year: 2026,
       month: 9,
       label: "Laptop",
@@ -638,6 +644,7 @@ describe("appendExpense", () => {
       usePercent: 100,
     };
     const second: FiledExpense = {
+      id: "second-1",
       year: 2026,
       month: 9,
       label: "Course",
@@ -647,6 +654,68 @@ describe("appendExpense", () => {
     };
 
     expect(appendExpense([first], second)).toEqual([first, second]);
+  });
+});
+
+describe("updateExpense / removeExpense", () => {
+  const first: FiledExpense = {
+    id: "first-1",
+    year: 2026,
+    month: 9,
+    label: "Laptop",
+    amount: 900,
+    kind: "work_it",
+    usePercent: 100,
+  };
+  const second: FiledExpense = {
+    id: "second-1",
+    year: 2026,
+    month: 9,
+    label: "Course",
+    amount: 200,
+    kind: "work_it",
+    usePercent: 100,
+  };
+
+  it("updates only the matching expense and keeps its id", () => {
+    const next = updateExpense([first, second], "first-1", {
+      year: 2026,
+      month: 9,
+      label: "Laptop Pro",
+      amount: 1200,
+      kind: "work_it",
+      usePercent: 100,
+    });
+
+    expect(next).toEqual([
+      {
+        id: "first-1",
+        year: 2026,
+        month: 9,
+        label: "Laptop Pro",
+        amount: 1200,
+        kind: "work_it",
+        usePercent: 100,
+      },
+      second,
+    ]);
+  });
+
+  it("removes only the matching expense", () => {
+    expect(removeExpense([first, second], "first-1")).toEqual([second]);
+    expect(removeExpense([first, second], "missing")).toEqual([first, second]);
+  });
+
+  it("round-trips through draft and normalize", () => {
+    const draft = draftFromExpense(first);
+
+    expect(draft).toEqual({
+      label: "Laptop",
+      amount: 900,
+      kind: "work_it",
+    });
+    expect(normalizeFiledExpense({ ...first, id: undefined }).id).toEqual(expect.any(String));
+    expect(normalizeFiledExpense(first).id).toBe("first-1");
   });
 });
 
@@ -669,6 +738,7 @@ describe("yearsOnFile", () => {
       checkIns: [] as MonthCheckIn[],
       expenses: [
         {
+          id: "exp-1",
           year: 2026,
           month: 9,
           label: "Laptop",
@@ -684,6 +754,7 @@ describe("yearsOnFile", () => {
       checkIns: [checkIn(2025, 11)],
       expenses: [
         {
+          id: "exp-2",
           year: 2026,
           month: 1,
           label: "Mouse",
@@ -713,6 +784,7 @@ describe("buildYearFileExport", () => {
       ],
       expenses: [
         {
+          id: "exp-3",
           year: 2026,
           month: 9,
           label: 'Work "laptop"',
