@@ -23,8 +23,7 @@ export const CHECK_IN_QUESTIONS = [
   },
   {
     id: "extra",
-    prompt:
-      "Did you donate, have unusual health or family costs, or a family change?",
+    prompt: "Did you donate, have unusual health or family costs, or a family change?",
     summary: "Family or extra costs",
   },
 ] as const;
@@ -64,13 +63,58 @@ export type YearSection = {
 
 export type FiledExpense = YearExpense & {
   year: number;
+  receipt?: ExpenseReceipt;
+};
+
+export type ExpenseReceipt = {
+  name: string;
+  mimeType: string;
+  dataUrl: string;
 };
 
 export type ExpenseDraft = {
   label: string;
   amount: number;
   kind: YearExpense["kind"];
+  receipt?: ExpenseReceipt;
 };
+
+export const MAX_RECEIPT_BYTES = 2 * 1024 * 1024;
+
+export function isAllowedReceiptFile(file: File): boolean {
+  return (
+    file.size > 0 &&
+    file.size <= MAX_RECEIPT_BYTES &&
+    (file.type.startsWith("image/") || file.type === "application/pdf")
+  );
+}
+
+export async function readReceiptFile(file: File): Promise<ExpenseReceipt | null> {
+  if (!isAllowedReceiptFile(file)) {
+    return null;
+  }
+
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let binary = "";
+
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+
+  return {
+    name: file.name,
+    mimeType: file.type,
+    dataUrl: `data:${file.type};base64,${btoa(binary)}`,
+  };
+}
+
+export function downloadReceipt(receipt: ExpenseReceipt) {
+  const link = document.createElement("a");
+
+  link.href = receipt.dataUrl;
+  link.download = receipt.name;
+  link.click();
+}
 
 export const MONTH_NAMES = [
   "January",
@@ -91,18 +135,11 @@ export function monthName(month: number): string {
   return MONTH_NAMES[month - 1] ?? "";
 }
 
-export function isCompleteAnswers(
-  draft: Partial<CheckInAnswers>,
-): draft is CheckInAnswers {
-  return CHECK_IN_QUESTIONS.every(
-    (question) => typeof draft[question.id] === "boolean",
-  );
+export function isCompleteAnswers(draft: Partial<CheckInAnswers>): draft is CheckInAnswers {
+  return CHECK_IN_QUESTIONS.every((question) => typeof draft[question.id] === "boolean");
 }
 
-export function isFollowUpComplete(
-  id: QuestionId,
-  followUps: FollowUps,
-): boolean {
+export function isFollowUpComplete(id: QuestionId, followUps: FollowUps): boolean {
   switch (id) {
     case "job":
       return followUps.job?.change != null;
@@ -136,10 +173,7 @@ export function isFollowUpComplete(
   }
 }
 
-export function isBaselineComplete(
-  baseline: YearBaseline | undefined,
-  needed: boolean,
-) {
+export function isBaselineComplete(baseline: YearBaseline | undefined, needed: boolean) {
   if (!needed) {
     return true;
   }
@@ -166,23 +200,16 @@ export function isCheckInReady(
   baseline: YearBaseline | undefined,
   needsBaseline: boolean,
 ): boolean {
-  if (
-    !isCompleteAnswers(answers) ||
-    !isBaselineComplete(baseline, needsBaseline)
-  ) {
+  if (!isCompleteAnswers(answers) || !isBaselineComplete(baseline, needsBaseline)) {
     return false;
   }
 
   return CHECK_IN_QUESTIONS.every(
-    (question) =>
-      !answers[question.id] || isFollowUpComplete(question.id, followUps),
+    (question) => !answers[question.id] || isFollowUpComplete(question.id, followUps),
   );
 }
 
-export function summarizeMonth(
-  answers: CheckInAnswers,
-  followUps: FollowUps = {},
-): string {
+export function summarizeMonth(answers: CheckInAnswers, followUps: FollowUps = {}): string {
   const happened = CHECK_IN_QUESTIONS.flatMap((question) => {
     if (!answers[question.id]) {
       return [];
@@ -223,15 +250,10 @@ export function findCheckIn(
   year: number,
   month: number,
 ): MonthCheckIn | undefined {
-  return checkIns.find(
-    (checkIn) => checkIn.year === year && checkIn.month === month,
-  );
+  return checkIns.find((checkIn) => checkIn.year === year && checkIn.month === month);
 }
 
-export function isCurrentMonthComplete(
-  checkIns: MonthCheckIn[],
-  now: Date,
-): boolean {
+export function isCurrentMonthComplete(checkIns: MonthCheckIn[], now: Date): boolean {
   return Boolean(findCheckIn(checkIns, now.getFullYear(), now.getMonth() + 1));
 }
 
@@ -252,15 +274,9 @@ export function groupCheckInsByYear(checkIns: MonthCheckIn[]): YearSection[] {
     }));
 }
 
-export function upsertCheckIn(
-  checkIns: MonthCheckIn[],
-  next: MonthCheckIn,
-): MonthCheckIn[] {
+export function upsertCheckIn(checkIns: MonthCheckIn[], next: MonthCheckIn): MonthCheckIn[] {
   return [
-    ...checkIns.filter(
-      (checkIn) =>
-        !(checkIn.year === next.year && checkIn.month === next.month),
-    ),
+    ...checkIns.filter((checkIn) => !(checkIn.year === next.year && checkIn.month === next.month)),
     next,
   ];
 }
@@ -276,21 +292,15 @@ export function yearHasStandingFacts(
 
   return checkIns.some(
     (checkIn) =>
-      checkIn.year === year &&
-      (checkIn.followUps.move != null || checkIn.followUps.wfh != null),
+      checkIn.year === year && (checkIn.followUps.move != null || checkIn.followUps.wfh != null),
   );
 }
 
 export function isExpenseDraftComplete(draft: ExpenseDraft): boolean {
-  return (
-    draft.label.trim().length > 0 && draft.amount > 0 && Boolean(draft.kind)
-  );
+  return draft.label.trim().length > 0 && draft.amount > 0 && Boolean(draft.kind);
 }
 
-export function appendExpense(
-  expenses: FiledExpense[],
-  expense: FiledExpense,
-): FiledExpense[] {
+export function appendExpense(expenses: FiledExpense[], expense: FiledExpense): FiledExpense[] {
   return [...expenses, expense];
 }
 
@@ -340,9 +350,7 @@ export function factsForYear(
     if (checkIn.followUps.move) {
       commuteSegments.push({
         fromMonth: checkIn.month,
-        km: checkIn.followUps.move.fullyRemote
-          ? null
-          : checkIn.followUps.move.km,
+        km: checkIn.followUps.move.fullyRemote ? null : checkIn.followUps.move.km,
       });
     }
 
@@ -363,10 +371,7 @@ export function factsForYear(
       });
     }
 
-    if (
-      checkIn.followUps.extra?.kind === "donation" &&
-      checkIn.followUps.extra.amount > 0
-    ) {
+    if (checkIn.followUps.extra?.kind === "donation" && checkIn.followUps.extra.amount > 0) {
       expenses.push({
         month: checkIn.month,
         label: checkIn.followUps.extra.note || "Donation",
@@ -443,6 +448,7 @@ export function buildYearFileExport(
       "fully_remote",
       "wfh_days_per_week",
       "summary",
+      "receipt_name",
     ]),
   ];
 
@@ -463,6 +469,7 @@ export function buildYearFileExport(
         baseline.fullyRemote ? null : baseline.km,
         baseline.fullyRemote,
         baseline.wfhDaysPerWeek,
+        "",
         "",
       ]),
     );
@@ -486,6 +493,7 @@ export function buildYearFileExport(
         "",
         "",
         summarizeMonth(entry.answers, entry.followUps),
+        "",
       ]),
     );
   }
@@ -508,6 +516,7 @@ export function buildYearFileExport(
         "",
         "",
         "",
+        expense.receipt?.name ?? "",
       ]),
     );
   }

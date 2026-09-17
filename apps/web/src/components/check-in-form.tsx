@@ -6,6 +6,7 @@ import {
   CHECK_IN_QUESTIONS,
   isCheckInReady,
   isExpenseDraftComplete,
+  readReceiptFile,
   type CheckInAnswers,
   type ExpenseDraft,
   type FollowUps,
@@ -13,6 +14,7 @@ import {
   type QuestionId,
   type YearBaseline,
 } from "@/lib/check-in";
+import { ReceiptThumbnail } from "@/components/receipt-viewer";
 
 function YesNo({
   label,
@@ -137,8 +139,7 @@ export function CheckInForm({
             <div>
               <h3 className="font-medium">Already true this year</h3>
               <p className="text-sm text-muted-foreground">
-                So July is not a memory test. One-way kilometres, not round
-                trip.
+                So July is not a memory test. One-way kilometres, not round trip.
               </p>
             </div>
             <Choice
@@ -170,10 +171,7 @@ export function CheckInForm({
                       ...baseline,
                       year,
                       fullyRemote: false,
-                      km:
-                        event.target.value === ""
-                          ? null
-                          : Number(event.target.value),
+                      km: event.target.value === "" ? null : Number(event.target.value),
                       wfhDaysPerWeek: baseline.wfhDaysPerWeek ?? 0,
                     })
                   }
@@ -202,8 +200,8 @@ export function CheckInForm({
         ) : null}
 
         <p className="text-sm text-muted-foreground">
-          How {monthLabel} passed. No is a complete answer — extra fields only
-          appear if something changed.
+          How {monthLabel} passed. No is a complete answer — extra fields only appear if something
+          changed.
         </p>
 
         {CHECK_IN_QUESTIONS.map((question) => (
@@ -315,10 +313,7 @@ function FollowUpFields({
                   ...followUps,
                   move: {
                     fullyRemote: false,
-                    km:
-                      event.target.value === ""
-                        ? null
-                        : Number(event.target.value),
+                    km: event.target.value === "" ? null : Number(event.target.value),
                   },
                 })
               }
@@ -334,18 +329,12 @@ function FollowUpFields({
       <Field label="Typical home-office days per week from now">
         <Choice
           label="Home-office days per week"
-          value={
-            followUps.wfh != null
-              ? String(followUps.wfh.daysPerWeek)
-              : undefined
-          }
+          value={followUps.wfh != null ? String(followUps.wfh.daysPerWeek) : undefined}
           options={["0", "1", "2", "3", "4", "5"].map((day) => ({
             id: day,
             label: day,
           }))}
-          onChange={(value) =>
-            onChange({ ...followUps, wfh: { daysPerWeek: Number(value) } })
-          }
+          onChange={(value) => onChange({ ...followUps, wfh: { daysPerWeek: Number(value) } })}
         />
       </Field>
     );
@@ -454,9 +443,7 @@ export function ExpenseFields({
         <Input
           placeholder="Laptop"
           value={draft.label}
-          onChange={(event) =>
-            onChange({ ...draft, label: event.target.value })
-          }
+          onChange={(event) => onChange({ ...draft, label: event.target.value })}
         />
       </Field>
       <Field label="Amount (€)">
@@ -466,9 +453,7 @@ export function ExpenseFields({
           step={1}
           inputMode="decimal"
           value={draft.amount || ""}
-          onChange={(event) =>
-            onChange({ ...draft, amount: Number(event.target.value) })
-          }
+          onChange={(event) => onChange({ ...draft, amount: Number(event.target.value) })}
         />
       </Field>
       <Choice
@@ -494,6 +479,18 @@ export function ExpenseForm({
 }) {
   const ready = isExpenseDraftComplete(draft);
 
+  async function attachReceipt(file: File | undefined) {
+    if (!file) {
+      return;
+    }
+
+    const receipt = await readReceiptFile(file);
+
+    if (receipt) {
+      onChange({ ...draft, receipt });
+    }
+  }
+
   return (
     <form
       className="flex flex-col gap-4"
@@ -506,8 +503,7 @@ export function ExpenseForm({
       }}
     >
       <p className="text-sm text-muted-foreground">
-        Drop it on this year. You can do this after the month is already caught
-        up.
+        Drop it on this year. You can do this after the month is already caught up.
       </p>
       <ExpenseFields
         draft={draft}
@@ -518,6 +514,42 @@ export function ExpenseForm({
           { id: "donation", label: "Donation" },
         ]}
       />
+      <div className="flex flex-col gap-2">
+        <Field label="Receipt (optional)">
+          {draft.receipt ? (
+            <div className="flex items-start gap-3 rounded-lg border bg-muted/30 p-3">
+              <ReceiptThumbnail
+                receipt={draft.receipt}
+                onReplace={(receipt) => onChange({ ...draft, receipt })}
+                onRemove={() => {
+                  const { receipt: _removed, ...rest } = draft;
+                  onChange(rest);
+                }}
+              />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">{draft.receipt.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  Tap thumbnail to preview, download, or replace
+                </p>
+              </div>
+            </div>
+          ) : (
+            <Input
+              type="file"
+              accept="image/*,application/pdf"
+              onChange={(event) => {
+                void attachReceipt(event.target.files?.[0]);
+                event.target.value = "";
+              }}
+            />
+          )}
+        </Field>
+        {!draft.receipt ? (
+          <p className="text-xs text-muted-foreground">
+            Image or PDF, up to 2 MB. Not required to save.
+          </p>
+        ) : null}
+      </div>
       <div className="-mx-4 mt-2 flex justify-end border-t bg-muted/50 px-4 pt-4">
         <Button type="submit" disabled={!ready}>
           Save expense · {monthLabel}

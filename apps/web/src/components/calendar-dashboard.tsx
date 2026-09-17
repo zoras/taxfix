@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { CheckInForm, ExpenseForm } from "@/components/check-in-form";
+import { ReceiptThumbnail } from "@/components/receipt-viewer";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,6 +23,7 @@ import {
   yearsOnFile,
   type CheckInAnswers,
   type ExpenseDraft,
+  type ExpenseReceipt,
   type FiledExpense,
   type FollowUps,
   type MonthCheckIn,
@@ -83,6 +85,17 @@ function loadStore(): FileStore {
 
 function persistStore(store: FileStore) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+}
+
+function sameExpense(left: FiledExpense, right: FiledExpense): boolean {
+  return (
+    left.year === right.year &&
+    left.month === right.month &&
+    left.label === right.label &&
+    left.amount === right.amount &&
+    left.kind === right.kind &&
+    left.receipt?.dataUrl === right.receipt?.dataUrl
+  );
 }
 
 const emptyExpense = (): ExpenseDraft => ({
@@ -162,6 +175,7 @@ export function CalendarDashboard() {
         amount: expenseDraft.amount,
         kind: expenseDraft.kind,
         usePercent: 100,
+        ...(expenseDraft.receipt ? { receipt: expenseDraft.receipt } : {}),
       }),
     });
     setExpenseDraft(emptyExpense());
@@ -178,6 +192,24 @@ export function CalendarDashboard() {
     link.download = filename;
     link.click();
     URL.revokeObjectURL(url);
+  }
+
+  function updateExpenseReceipt(target: FiledExpense, receipt: ExpenseReceipt | undefined) {
+    writeStore({
+      ...store,
+      expenses: store.expenses.map((expense) => {
+        if (!sameExpense(expense, target)) {
+          return expense;
+        }
+
+        if (!receipt) {
+          const { receipt: _removed, ...rest } = expense;
+          return rest;
+        }
+
+        return { ...expense, receipt };
+      }),
+    });
   }
 
   const canExport =
@@ -260,6 +292,7 @@ export function CalendarDashboard() {
               checkIns={store.checkIns}
               expenses={store.expenses.filter((expense) => expense.year === sectionYear)}
               onAddExpense={() => setDialog("expense")}
+              onUpdateReceipt={updateExpenseReceipt}
             />
           ))}
         </div>
@@ -332,6 +365,7 @@ function YearCard({
   checkIns,
   expenses,
   onAddExpense,
+  onUpdateReceipt,
 }: {
   year: number;
   isCurrentYear: boolean;
@@ -340,6 +374,7 @@ function YearCard({
   checkIns: MonthCheckIn[];
   expenses: FiledExpense[];
   onAddExpense: () => void;
+  onUpdateReceipt: (expense: FiledExpense, receipt: ExpenseReceipt | undefined) => void;
 }) {
   const facts = useMemo(
     () => factsForYear(year, baseline, checkIns, expenses),
@@ -393,13 +428,23 @@ function YearCard({
         <ul className="mt-2 divide-y border-t">
           {expenses.map((expense) => (
             <li
-              key={`${expense.month}-${expense.label}-${expense.amount}`}
-              className="flex items-baseline justify-between gap-4 py-3"
+              key={`${expense.month}-${expense.label}-${expense.amount}-${expense.receipt?.name ?? "none"}`}
+              className="flex items-center justify-between gap-4 py-3"
             >
-              <span className="font-medium">
-                {monthName(expense.month)} · {expense.label}
-              </span>
-              <span className="text-sm text-muted-foreground">€{expense.amount}</span>
+              <div className="flex min-w-0 items-center gap-3">
+                {expense.receipt ? (
+                  <ReceiptThumbnail
+                    receipt={expense.receipt}
+                    size="sm"
+                    onReplace={(receipt) => onUpdateReceipt(expense, receipt)}
+                    onRemove={() => onUpdateReceipt(expense, undefined)}
+                  />
+                ) : null}
+                <span className="font-medium">
+                  {monthName(expense.month)} · {expense.label}
+                </span>
+              </div>
+              <span className="shrink-0 text-sm text-muted-foreground">€{expense.amount}</span>
             </li>
           ))}
         </ul>
