@@ -2,7 +2,9 @@
 
 ## Feature outcome
 
-A Taxfix user can keep a File of the tax year (expenses and life changes) and optionally complete a monthly check-in, so the product is useful outside filing season and July becomes confirmation rather than reconstruction.
+A Taxfix user can complete a voluntary monthly life check-in on a calendar of years they have already submitted, so the product is useful outside filing season and July becomes confirmation rather than reconstruction.
+
+Tax Memory (receipts, agents, readiness) is related vision, not this feature’s delivery contract.
 
 ## Framing — Idea, PRD, pitch
 

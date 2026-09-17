@@ -5,8 +5,9 @@
 - Product direction is Option B: monthly life check-in (**This Month**), not a refund-pocket hero or a filing-season wizard
 - Product docs before UI/implementation
 - First UI scaffold is a shadcn sidebar app shell; auth is off until the check-in needs a User
-- **The File** is the writable tax-year page (expenses + life changes); This Month writes into it
-- File-add does not complete the month (assumption until operator changes it)
+- **Calendar dashboard** is the current return object (year sections + check-in dialog); a second File page is deferred
+- File-add does not complete the month (assumption until operator changes it; File-add itself is deferred)
+- **Tax Memory** (zoras) is related vision/tagline, not a rename and not the MVP. OCR, agents, readiness %, inbox stay parked
 
 ## Log
 
@@ -90,3 +91,23 @@ Add React + shadcn to `apps/web`, wrap app pages in a sidebar shell (**This Mont
 Login/signup still exist but are unlinked. `/dashboard` redirects to `/`. Auth must be re-enabled before storing File entries per user.
 
 **Supersedes:** “Product framing before feature design” for the “no UI” part only — product docs still stand
+
+### 2026-09-17 — Absorb Tax Memory as related vision, not product identity
+
+**Status:** Accepted
+
+**Context:**
+Zoras opened [PR #3](https://github.com/yarychh/taxfix/pull/3) with a Tax Memory PRD (receipt AI, life-event check-in, pattern detection, Tax Readiness %, multi-agent/MCP) and a merge into our feature PRD. His merge rule: This Month and the decision log win on conflict. Code on this branch is already a single calendar dashboard, not a File page. Tax Memory also proposes monthly notifications and a readiness score — both already rejected for this feature.
+
+**Decision:**
+Ingest Tax Memory as related vision. Keep the product name **This Month**. Keep the calendar + five-question dialog as the delivery contract. Keep the tagline “Don’t remember your tax year. Build it.” Map “persistent memory of the year” to year sections on the calendar. Park OCR, agents, MCP, readiness % as hero, email inbox, and notification theatre.
+
+**Alternatives considered:**
+
+- Replace This Month with Tax Memory (AI companion + receipt scanner) — fights the brief (reminders), Option C (readiness meter), and ontology research (don’t clone the photo inbox)
+- Ignore the PR — loses teammate insight, jury-weight framing, and a parked AI backlog
+
+**Consequences:**
+Pitch may use the Tax Memory line. Demo can mention agents only after the calendar slice. A second File route stays deferred unless operators reopen it. GH PR #3 should not be merged as-is (it rewrites the File-era PRD).
+
+**Supersedes:** none — does not undo Option B or the calendar dashboard; parks Tax Memory extras

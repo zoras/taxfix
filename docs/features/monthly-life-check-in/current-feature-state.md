@@ -6,19 +6,20 @@ Scaffolding
 
 ## One-paragraph summary
 
-Product framing for **This Month** + **the File** is locked. App chrome is now a shadcn sidebar shell (This Month, The File) with auth temporarily off.
+**This Month** is a calendar dashboard plus a five-question check-in dialog. Tax Memory (zoras PR #3) is absorbed as related vision/tagline, not a rename. OCR, agents, and a second File page stay parked.
 
 ## What is currently true
 
 - Workspace created 2026-09-17 via `/feature-development`
-- Operator chose Option B, then asked for flows plus a File page (expenses + life changes e.g. moving)
-- [pitch.md](./pitch.md), [prds/feature.prd.md](./prds/feature.prd.md), [user-flows.md](./user-flows.md) written
-- Web app has a shadcn sidebar shell: `/` (This Month), `/file` (The File)
-- Auth session checks are disabled so UI work can proceed without login
+- Operator chose Option B
+- Live UI: one calendar page (`/`) with year sections and a check-in dialog; auth off
+- [pitch.md](./pitch.md), [prds/feature.prd.md](./prds/feature.prd.md) updated to calendar + Tax Memory vision
+- Research: [german-tax-ontology-and-analogs.md](./research/german-tax-ontology-and-analogs.md), [tax-memory-absorption.md](./research/tax-memory-absorption.md)
+- [user-flows.md](./user-flows.md) still describes the richer File-add model; that path is deferred
 
 ## Active phase
 
-**UI scaffold:** app shell, no check-in or File add yet
+**UI scaffold:** calendar dashboard + check-in dialog (client localStorage)
 
 ## Active tasks
 
@@ -27,21 +28,25 @@ none
 ## Assumptions
 
 - No push notifications or deadline countdowns
-- File is the return object; euro refund is not the hero
+- Calendar year sections are the return object; euro refund is not the hero
 - English UI for hackathon speed; German tax meaning in the engine
-- First visit may offer year catch-up but must not force it
-- Five yes/no questions is the monthly ceiling; follow-ups only on yes
-- File-add does not complete the month; check-in skips topics already on file this month
-- First slice types: move, job, WFH, expense; family optional
+- First visit stays empty until the first check-in; do not force catch-up
+- Five yes/no questions is the monthly ceiling; follow-up mini-forms deferred
+- File-add / second route deferred; check-in is the only writer for now
+- Tax Memory AI (OCR, agents, MCP, readiness %) only if the calendar slice is done
+- Demo tax year **2026** (Pendlerpauschale €0.38 from km 1)
+- Default **220** workdays (used if File-add / meter reopens)
 
 ## Last completed work
 
-- 2026-09-17: User flows + File page model; PRD updated
-- 2026-09-17: Scaffolded shadcn sidebar app shell; disabled auth gating
+- 2026-09-17: User flows + File page model; later deferred in favor of calendar
+- 2026-09-17: Scaffolded shadcn sidebar + calendar dashboard; disabled auth gating
+- 2026-09-17: Ontology research
+- 2026-09-17: Ingested Tax Memory from [PR #3](https://github.com/yarychh/taxfix/pull/3) as related vision
 
 ## Next recommended action
 
-- Build File (true today + timeline + add) and the monthly check-in inside the existing shell
+- Confirm calendar + check-in is the slice to demo; do not merge GH PR #3 as-is (File-era rewrite)
 
 ## Blockers
 
@@ -49,22 +54,22 @@ none
 
 ## Open questions
 
-- File only vs labeled euro footnote
+- Year sections only vs labeled euro / lump-sum footnote
 - English vs German UI copy
-- Catch-up-the-year as default first visit vs empty File
-- Confirm: File-add does not complete This Month
+- Catch-up-the-year as default first visit vs empty calendar (default: empty)
+- How far to show Tax Memory AI if time remains after the slice
 
 ## Known risks
 
 - Weak organic return without notifications
-- Two concepts (File vs This Month) to explain in a demo
-- Judges may still expect a money number (Option A)
+- Judges may still expect a money number (Option A) or OCR wow (Tax Memory)
+- user-flows.md still File-centric while PRD/code are calendar
 
 ## Last verification
 
-- 2026-09-17: Browser-checked `/` with sidebar nav and collapse, `/dashboard` redirects home without login, `/login` has no app chrome. `/file` added after flows named The File.
+- 2026-09-17: Browser-checked `/` with sidebar nav and collapse, `/dashboard` redirects home without login, `/login` has no app chrome. Calendar dashboard is the home surface.
 
 ## Entry points
 
-- Docs: [user-flows.md](./user-flows.md), [prds/feature.prd.md](./prds/feature.prd.md), [pitch.md](./pitch.md)
-- Code: `apps/web/src/components/app-shell.tsx`, `apps/web/src/pages/index.astro`, `apps/web/src/pages/file.astro`
+- Docs: [prds/feature.prd.md](./prds/feature.prd.md), [research/tax-memory-absorption.md](./research/tax-memory-absorption.md), [user-flows.md](./user-flows.md)
+- Code: `apps/web/src/components/calendar-dashboard.tsx`, `apps/web/src/lib/check-in.ts`, `apps/web/src/components/app-shell.tsx`
