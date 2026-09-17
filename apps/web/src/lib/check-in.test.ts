@@ -1,0 +1,296 @@
+import { describe, expect, it } from "bun:test";
+
+import {
+  CHECK_IN_QUESTIONS,
+  findCheckIn,
+  groupCheckInsByYear,
+  isCompleteAnswers,
+  isCurrentMonthComplete,
+  monthName,
+  summarizeMonth,
+  upsertCheckIn,
+  type CheckInAnswers,
+  type MonthCheckIn,
+  type QuestionId,
+} from "./check-in";
+
+function answers(overrides: Partial<CheckInAnswers> = {}): CheckInAnswers {
+  return {
+    job: false,
+    move: false,
+    wfh: false,
+    expense: false,
+    extra: false,
+    ...overrides,
+  };
+}
+
+function checkIn(
+  year: number,
+  month: number,
+  overrides: Partial<CheckInAnswers> = {},
+): MonthCheckIn {
+  return { year, month, answers: answers(overrides) };
+}
+
+describe("monthName", () => {
+  it.each([
+    [1, "January"],
+    [2, "February"],
+    [3, "March"],
+    [4, "April"],
+    [5, "May"],
+    [6, "June"],
+    [7, "July"],
+    [8, "August"],
+    [9, "September"],
+    [10, "October"],
+    [11, "November"],
+    [12, "December"],
+  ] as const)("month %i is %s", (month, name) => {
+    expect(monthName(month)).toBe(name);
+  });
+
+  it.each([[0], [13], [-1], [1.5]] as const)(
+    "returns empty for out-of-range month %s",
+    (month) => {
+      expect(monthName(month)).toBe("");
+    },
+  );
+});
+
+describe("isCompleteAnswers", () => {
+  it.each([
+    { name: "empty draft", draft: {}, complete: false },
+    { name: "one answer", draft: { job: true }, complete: false },
+    {
+      name: "four answers",
+      draft: { job: false, move: false, wfh: false, expense: true },
+      complete: false,
+    },
+    {
+      name: "all five nos",
+      draft: answers(),
+      complete: true,
+    },
+    {
+      name: "all five mixed",
+      draft: answers({ job: true, extra: true }),
+      complete: true,
+    },
+  ])("$name", ({ draft, complete }) => {
+    expect(isCompleteAnswers(draft)).toBe(complete);
+  });
+});
+
+describe("summarizeMonth", () => {
+  it.each([
+    {
+      name: "all no",
+      input: answers(),
+      summary: "Quiet month",
+    },
+    {
+      name: "job only",
+      input: answers({ job: true }),
+      summary: "Job changed",
+    },
+    {
+      name: "move only",
+      input: answers({ move: true }),
+      summary: "Moved or commute changed",
+    },
+    {
+      name: "wfh only",
+      input: answers({ wfh: true }),
+      summary: "Home office changed",
+    },
+    {
+      name: "expense only",
+      input: answers({ expense: true }),
+      summary: "Extra work spend",
+    },
+    {
+      name: "extra only",
+      input: answers({ extra: true }),
+      summary: "Family or extra costs",
+    },
+    {
+      name: "job and expense keep question order",
+      input: answers({ job: true, expense: true }),
+      summary: "Job changed · Extra work spend",
+    },
+    {
+      name: "move and extra keep question order",
+      input: answers({ extra: true, move: true }),
+      summary: "Moved or commute changed · Family or extra costs",
+    },
+    {
+      name: "all yes",
+      input: answers({
+        job: true,
+        move: true,
+        wfh: true,
+        expense: true,
+        extra: true,
+      }),
+      summary:
+        "Job changed · Moved or commute changed · Home office changed · Extra work spend · Family or extra costs",
+    },
+  ])("$name", ({ input, summary }) => {
+    expect(summarizeMonth(input)).toBe(summary);
+  });
+
+  it("covers every question id in a single-yes summary", () => {
+    const ids = CHECK_IN_QUESTIONS.map((question) => question.id);
+
+    expect(ids).toEqual(["job", "move", "wfh", "expense", "extra"] satisfies QuestionId[]);
+
+    for (const question of CHECK_IN_QUESTIONS) {
+      expect(summarizeMonth(answers({ [question.id]: true }))).toBe(question.summary);
+    }
+  });
+});
+
+describe("findCheckIn", () => {
+  const catalog = [checkIn(2026, 9), checkIn(2025, 11, { move: true })];
+
+  it.each([
+    { name: "current month", year: 2026, month: 9, found: true },
+    { name: "previous year", year: 2025, month: 11, found: true },
+    { name: "same year other month", year: 2026, month: 8, found: false },
+    { name: "same month other year", year: 2025, month: 9, found: false },
+    { name: "empty list", year: 2026, month: 9, found: false, source: [] as MonthCheckIn[] },
+  ])("$name", ({ year, month, found, source = catalog }) => {
+    expect(Boolean(findCheckIn(source, year, month))).toBe(found);
+  });
+});
+
+describe("isCurrentMonthComplete", () => {
+  it.each([
+    {
+      name: "empty file in September",
+      checkIns: [] as MonthCheckIn[],
+      now: new Date(2026, 8, 17),
+      complete: false,
+    },
+    {
+      name: "September 2026 is on file",
+      checkIns: [checkIn(2026, 9)],
+      now: new Date(2026, 8, 17),
+      complete: true,
+    },
+    {
+      name: "only August 2026 is on file",
+      checkIns: [checkIn(2026, 8)],
+      now: new Date(2026, 8, 17),
+      complete: false,
+    },
+    {
+      name: "September of another year",
+      checkIns: [checkIn(2025, 9)],
+      now: new Date(2026, 8, 17),
+      complete: false,
+    },
+    {
+      name: "January complete",
+      checkIns: [checkIn(2026, 1, { job: true })],
+      now: new Date(2026, 0, 2),
+      complete: true,
+    },
+    {
+      name: "December missing",
+      checkIns: [checkIn(2026, 11)],
+      now: new Date(2026, 11, 31),
+      complete: false,
+    },
+  ])("$name", ({ checkIns, now, complete }) => {
+    expect(isCurrentMonthComplete(checkIns, now)).toBe(complete);
+  });
+});
+
+describe("groupCheckInsByYear", () => {
+  it("returns no sections when nothing has been submitted", () => {
+    expect(groupCheckInsByYear([])).toEqual([]);
+  });
+
+  it.each([
+    {
+      name: "one month becomes one year section",
+      input: [checkIn(2026, 9)],
+      years: [2026],
+      monthsByYear: { 2026: [9] },
+    },
+    {
+      name: "same year stays one section",
+      input: [checkIn(2026, 3), checkIn(2026, 9)],
+      years: [2026],
+      monthsByYear: { 2026: [9, 3] },
+    },
+    {
+      name: "years are newest first",
+      input: [checkIn(2024, 6), checkIn(2026, 1), checkIn(2025, 12)],
+      years: [2026, 2025, 2024],
+      monthsByYear: { 2026: [1], 2025: [12], 2024: [6] },
+    },
+    {
+      name: "months inside a year are newest first",
+      input: [checkIn(2026, 2), checkIn(2026, 11), checkIn(2026, 5)],
+      years: [2026],
+      monthsByYear: { 2026: [11, 5, 2] },
+    },
+  ])("$name", ({ input, years, monthsByYear }) => {
+    const sections = groupCheckInsByYear(input);
+
+    expect(sections.map((section) => section.year)).toEqual(years);
+
+    for (const section of sections) {
+      expect(section.months.map((month) => month.month)).toEqual(
+        monthsByYear[section.year],
+      );
+    }
+  });
+});
+
+describe("upsertCheckIn", () => {
+  it.each([
+    {
+      name: "inserts a new month",
+      existing: [checkIn(2026, 8)],
+      next: checkIn(2026, 9, { job: true }),
+      yearsAndMonths: [
+        [2026, 8],
+        [2026, 9],
+      ],
+    },
+    {
+      name: "replaces the same year and month",
+      existing: [checkIn(2026, 9, { job: true })],
+      next: checkIn(2026, 9),
+      yearsAndMonths: [[2026, 9]],
+    },
+    {
+      name: "does not touch another year",
+      existing: [checkIn(2025, 9)],
+      next: checkIn(2026, 9),
+      yearsAndMonths: [
+        [2025, 9],
+        [2026, 9],
+      ],
+    },
+  ])("$name", ({ existing, next, yearsAndMonths }) => {
+    const result = upsertCheckIn(existing, next);
+
+    expect(
+      result.map((item) => [item.year, item.month]).sort((left, right) => {
+        if (left[0] !== right[0]) {
+          return left[0] - right[0];
+        }
+
+        return left[1] - right[1];
+      }),
+    ).toEqual(yearsAndMonths);
+
+    expect(findCheckIn(result, next.year, next.month)?.answers).toEqual(next.answers);
+  });
+});

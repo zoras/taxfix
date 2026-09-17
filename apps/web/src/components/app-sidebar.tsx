@@ -1,4 +1,4 @@
-import { CalendarDays, FolderOpen } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 
 import {
   Sidebar,
@@ -13,19 +13,6 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-
-const navItems = [
-  { title: "This Month", url: "/", icon: CalendarDays },
-  { title: "The File", url: "/file", icon: FolderOpen },
-] as const;
-
-function isActivePath(url: string, currentPath: string) {
-  if (url === "/") {
-    return currentPath === "/";
-  }
-
-  return currentPath === url || currentPath.startsWith(`${url}/`);
-}
 
 export function AppSidebar({ currentPath }: { currentPath: string }) {
   return (
@@ -53,21 +40,19 @@ export function AppSidebar({ currentPath }: { currentPath: string }) {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Check-in</SidebarGroupLabel>
+          <SidebarGroupLabel>Your year</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
-                <SidebarMenuItem key={item.url} className="mb-1">
-                  <SidebarMenuButton
-                    render={<a href={item.url} />}
-                    isActive={isActivePath(item.url, currentPath)}
-                    tooltip={item.title}
-                  >
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              <SidebarMenuItem className="mb-1">
+                <SidebarMenuButton
+                  render={<a href="/" />}
+                  isActive={currentPath === "/"}
+                  tooltip="Calendar"
+                >
+                  <CalendarDays />
+                  <span>Calendar</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

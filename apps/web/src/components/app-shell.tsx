@@ -10,8 +10,7 @@ import {
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 const pageTitles: Record<string, string> = {
-  "/": "This Month",
-  "/file": "The File",
+  "/": "Calendar",
 };
 
 export function AppShell({
