@@ -2,7 +2,7 @@
 
 ## Feature outcome
 
-A Taxfix user can complete a voluntary monthly life check-in and see a calm year story, so the product is useful outside filing season and July becomes confirmation rather than reconstruction.
+A Taxfix user can keep a File of the tax year (expenses and life changes) and optionally complete a monthly check-in, so the product is useful outside filing season and July becomes confirmation rather than reconstruction.
 
 ## Framing — Idea, PRD, pitch
 
@@ -14,7 +14,7 @@ A Taxfix user can complete a voluntary monthly life check-in and see a calm year
 
 **Status:** In progress (pitch + feature PRD drafted; awaiting operator acceptance)
 
-**Artifacts:** [pitch.md](./pitch.md), [prds/feature.prd.md](./prds/feature.prd.md)
+**Artifacts:** [pitch.md](./pitch.md), [prds/feature.prd.md](./prds/feature.prd.md), [user-flows.md](./user-flows.md)
 
 ---
 

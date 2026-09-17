@@ -13,7 +13,7 @@ We are not going to nag people back. Reminders are not value.
 
 **This Month** is a voluntary, recurring check-in: five yes/no questions about what actually changed in your life. Job, move, home office, commute, donations, extra costs. A “yes” unlocks one short follow-up. A “no” is a complete answer.
 
-Each month writes a line into a **year story** Taxfix already knows. Open the app in November because you want to see that you are caught up — in control, a bit proud, a little clever — not because a badge is about to expire.
+Each month writes into **the File** — your tax year: moves, job changes, home office, expenses. You can also add those directly the week they happen (the November laptop, the move). Open the app because you want the File to be true — in control, a bit proud, a little clever — not because a badge is about to expire.
 
 When the deadline arrives, the form is mostly filled by a year of ordinary months. Peak season gets quieter. Data gets better. Taxfix gets a reason to exist in February, June, and November.
 

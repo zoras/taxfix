@@ -4,6 +4,8 @@
 
 - Product direction is Option B: monthly life check-in (**This Month**), not a refund-pocket hero or a filing-season wizard
 - Product docs before UI/implementation
+- **The File** is the writable tax-year page (expenses + life changes); This Month writes into it
+- File-add does not complete the month (assumption until operator changes it)
 
 ## Log
 
@@ -46,3 +48,24 @@ Write pitch + feature PRD only. No phase PRD, no tasks, no schema, no UI.
 Roadmap stays at framing until the operator accepts the idea.
 
 **Supersedes:** none
+
+### 2026-09-17 — The File is the return object; check-in is a writer
+
+**Status:** Accepted
+
+**Context:**
+Operator asked to understand user flows and specified a File page where the user submits expenses and life changes such as moving. The original PRD treated the year story as a read model.
+
+**Decision:**
+The File is first-class: timeline + standing facts + add expense / add life change. This Month is an optional guided writer into the same File. Direct add does not auto-complete the month. Check-in skips topics already recorded this month.
+
+**Alternatives considered:**
+
+- Check-in only, File read-only — blocks the “I bought a laptop” path
+- File only, no monthly ritual — weaker forget-proof loop, weaker “caught up” close
+- Direct add marks the month done — simpler, but pretends one laptop means the whole month was reviewed
+
+**Consequences:**
+Two surfaces to explain. Flows live in `user-flows.md`. First build slice is File (move + expense) plus one month check-in.
+
+**Supersedes:** year story as read-only artifact in the initial PRD framing
