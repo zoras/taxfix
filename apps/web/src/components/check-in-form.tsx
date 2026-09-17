@@ -488,11 +488,15 @@ export function ExpenseForm({
   draft,
   onChange,
   onSubmit,
+  onDelete,
+  submitLabel,
 }: {
   monthLabel: string;
   draft: ExpenseDraft;
   onChange: (draft: ExpenseDraft) => void;
   onSubmit: () => void;
+  onDelete?: () => void;
+  submitLabel?: string;
 }) {
   const ready = isExpenseDraftComplete(draft);
 
@@ -520,8 +524,9 @@ export function ExpenseForm({
       }}
     >
       <p className="text-sm text-muted-foreground">
-        Drop it on this year. You can do this after the month is already caught
-        up.
+        {onDelete
+          ? "Update what you filed, or remove it from this year."
+          : "Drop it on this year. You can do this after the month is already caught up."}
       </p>
       <ExpenseFields
         draft={draft}
@@ -570,9 +575,16 @@ export function ExpenseForm({
           </p>
         ) : null}
       </div>
-      <div className="-mx-4 mt-2 flex justify-end border-t bg-muted/50 px-4 pt-4">
+      <div className="-mx-4 mt-2 flex flex-wrap items-center justify-between gap-2 border-t bg-muted/50 px-4 pt-4">
+        {onDelete ? (
+          <Button type="button" variant="destructive" onClick={onDelete}>
+            Delete
+          </Button>
+        ) : (
+          <span />
+        )}
         <Button type="submit" disabled={!ready}>
-          Save expense · {monthLabel}
+          {submitLabel ?? `Save expense · ${monthLabel}`}
         </Button>
       </div>
     </form>

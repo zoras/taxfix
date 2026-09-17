@@ -13,11 +13,16 @@ import {
 import {
   appendExpense,
   buildYearFileExport,
+  createExpenseId,
+  draftFromExpense,
   factsForYear,
   groupCheckInsByYear,
   isCurrentMonthComplete,
   monthName,
+  normalizeFiledExpense,
+  removeExpense,
   summarizeMonth,
+  updateExpense,
   upsertCheckIn,
   yearHasStandingFacts,
   yearsOnFile,
@@ -80,7 +85,9 @@ function loadStore(): FileStore {
     return {
       checkIns: (store.checkIns ?? []).map(normalizeCheckIn),
       baselines: store.baselines ?? [],
-      expenses: store.expenses ?? [],
+      expenses: (store.expenses ?? []).map((expense) =>
+        normalizeFiledExpense(expense),
+      ),
     };
   } catch {
     return emptyStore;
@@ -89,17 +96,6 @@ function loadStore(): FileStore {
 
 function persistStore(store: FileStore) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
-}
-
-function sameExpense(left: FiledExpense, right: FiledExpense): boolean {
-  return (
-    left.year === right.year &&
-    left.month === right.month &&
-    left.label === right.label &&
-    left.amount === right.amount &&
-    left.kind === right.kind &&
-    left.receipt?.dataUrl === right.receipt?.dataUrl
-  );
 }
 
 const emptyExpense = (): ExpenseDraft => ({
@@ -114,6 +110,7 @@ export function CalendarDashboard() {
   const month = now.getMonth() + 1;
   const [store, setStore] = useState<FileStore>(emptyStore);
   const [dialog, setDialog] = useState<"check-in" | "expense" | null>(null);
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Partial<CheckInAnswers>>({});
   const [followUps, setFollowUps] = useState<FollowUps>({});
   const [baseline, setBaseline] = useState<YearBaseline | undefined>();
@@ -128,6 +125,12 @@ export function CalendarDashboard() {
   const savedBaseline = store.baselines.find((entry) => entry.year === year);
   const currentDone = isCurrentMonthComplete(store.checkIns, now);
   const monthLabel = monthName(month);
+  const editingExpense = editingExpenseId
+    ? store.expenses.find((expense) => expense.id === editingExpenseId)
+    : undefined;
+  const expenseMonthLabel = editingExpense
+    ? monthName(editingExpense.month)
+    : monthLabel;
   const needsBaseline = !yearHasStandingFacts(
     year,
     savedBaseline,
@@ -139,6 +142,24 @@ export function CalendarDashboard() {
   function writeStore(next: FileStore) {
     setStore(next);
     persistStore(next);
+  }
+
+  function closeExpenseDialog() {
+    setDialog(null);
+    setEditingExpenseId(null);
+    setExpenseDraft(emptyExpense());
+  }
+
+  function openAddExpense() {
+    setEditingExpenseId(null);
+    setExpenseDraft(emptyExpense());
+    setDialog("expense");
+  }
+
+  function openEditExpense(expense: FiledExpense) {
+    setEditingExpenseId(expense.id);
+    setExpenseDraft(draftFromExpense(expense));
+    setDialog("expense");
   }
 
   function saveCheckIn() {
@@ -174,20 +195,38 @@ export function CalendarDashboard() {
   }
 
   function saveExpense() {
+    const payload = {
+      year: editingExpense?.year ?? year,
+      month: editingExpense?.month ?? month,
+      label: expenseDraft.label.trim(),
+      amount: expenseDraft.amount,
+      kind: expenseDraft.kind,
+      usePercent: 100 as const,
+      ...(expenseDraft.receipt ? { receipt: expenseDraft.receipt } : {}),
+    };
+
     writeStore({
       ...store,
-      expenses: appendExpense(store.expenses, {
-        year,
-        month,
-        label: expenseDraft.label.trim(),
-        amount: expenseDraft.amount,
-        kind: expenseDraft.kind,
-        usePercent: 100,
-        ...(expenseDraft.receipt ? { receipt: expenseDraft.receipt } : {}),
-      }),
+      expenses: editingExpenseId
+        ? updateExpense(store.expenses, editingExpenseId, payload)
+        : appendExpense(store.expenses, {
+            ...payload,
+            id: createExpenseId(),
+          }),
     });
-    setExpenseDraft(emptyExpense());
-    setDialog(null);
+    closeExpenseDialog();
+  }
+
+  function deleteExpense() {
+    if (!editingExpenseId) {
+      return;
+    }
+
+    writeStore({
+      ...store,
+      expenses: removeExpense(store.expenses, editingExpenseId),
+    });
+    closeExpenseDialog();
   }
 
   function exportFile() {
@@ -206,20 +245,15 @@ export function CalendarDashboard() {
     target: FiledExpense,
     receipt: ExpenseReceipt | undefined,
   ) {
+    const { receipt: _previous, ...rest } = target;
+
     writeStore({
       ...store,
-      expenses: store.expenses.map((expense) => {
-        if (!sameExpense(expense, target)) {
-          return expense;
-        }
-
-        if (!receipt) {
-          const { receipt: _removed, ...rest } = expense;
-          return rest;
-        }
-
-        return { ...expense, receipt };
-      }),
+      expenses: updateExpense(
+        store.expenses,
+        target.id,
+        receipt ? { ...rest, receipt } : rest,
+      ),
     });
   }
 
@@ -265,7 +299,7 @@ export function CalendarDashboard() {
           ) : null}
           <Button
             variant={currentDone ? "default" : "outline"}
-            onClick={() => setDialog("expense")}
+            onClick={openAddExpense}
           >
             Add expense
           </Button>
@@ -301,7 +335,8 @@ export function CalendarDashboard() {
               expenses={store.expenses.filter(
                 (expense) => expense.year === sectionYear,
               )}
-              onAddExpense={() => setDialog("expense")}
+              onAddExpense={openAddExpense}
+              onEditExpense={openEditExpense}
               onUpdateReceipt={updateExpenseReceipt}
             />
           ))}
@@ -315,7 +350,7 @@ export function CalendarDashboard() {
             setDialog(null);
             setAnswers({});
             setFollowUps({});
-            setExpenseDraft(emptyExpense());
+            closeExpenseDialog();
           }
         }}
       >
@@ -347,17 +382,27 @@ export function CalendarDashboard() {
           {dialog === "expense" ? (
             <>
               <DialogHeader>
-                <DialogTitle>Add an expense</DialogTitle>
+                <DialogTitle>
+                  {editingExpenseId ? "Edit expense" : "Add an expense"}
+                </DialogTitle>
                 <DialogDescription>
-                  {monthLabel} {year}
-                  {currentDone ? " · this month is already caught up" : ""}
+                  {expenseMonthLabel} {editingExpense?.year ?? year}
+                  {!editingExpenseId && currentDone
+                    ? " · this month is already caught up"
+                    : ""}
                 </DialogDescription>
               </DialogHeader>
               <ExpenseForm
-                monthLabel={monthLabel}
+                monthLabel={expenseMonthLabel}
                 draft={expenseDraft}
                 onChange={setExpenseDraft}
                 onSubmit={saveExpense}
+                onDelete={editingExpenseId ? deleteExpense : undefined}
+                submitLabel={
+                  editingExpenseId
+                    ? `Update · ${expenseMonthLabel}`
+                    : `Save expense · ${expenseMonthLabel}`
+                }
               />
             </>
           ) : null}
@@ -375,6 +420,7 @@ function YearCard({
   checkIns,
   expenses,
   onAddExpense,
+  onEditExpense,
   onUpdateReceipt,
 }: {
   year: number;
@@ -384,6 +430,7 @@ function YearCard({
   checkIns: MonthCheckIn[];
   expenses: FiledExpense[];
   onAddExpense: () => void;
+  onEditExpense: (expense: FiledExpense) => void;
   onUpdateReceipt: (
     expense: FiledExpense,
     receipt: ExpenseReceipt | undefined,
@@ -444,7 +491,7 @@ function YearCard({
         <ul className="mt-2 divide-y border-t">
           {expenses.map((expense) => (
             <li
-              key={`${expense.month}-${expense.label}-${expense.amount}-${expense.receipt?.name ?? "none"}`}
+              key={expense.id}
               className="flex items-center justify-between gap-4 py-3"
             >
               <div className="flex min-w-0 items-center gap-3">
@@ -460,9 +507,18 @@ function YearCard({
                   {monthName(expense.month)} · {expense.label}
                 </span>
               </div>
-              <span className="shrink-0 text-sm text-muted-foreground">
-                €{expense.amount}
-              </span>
+              <div className="flex shrink-0 items-center gap-2">
+                <span className="text-sm text-muted-foreground">
+                  €{expense.amount}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onEditExpense(expense)}
+                >
+                  Edit
+                </Button>
+              </div>
             </li>
           ))}
         </ul>
